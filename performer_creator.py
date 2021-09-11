@@ -7,6 +7,8 @@ import random
 import requests
 import urllib3
 
+import config
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 import log
@@ -19,8 +21,10 @@ nlp = spacy.load(model)
 ##############################
 ##		 CONFIG SETTINGS
 ##############################
-SCRAPE_ORDER = ["Babepedia", "ThePornDB"]
-IGNORE_TAGS = []
+#SCRAPE_ORDER = ["Babepedia", "ThePornDB"]
+#SCRAPE_ORDER = ["Waybig", "ThePornDB"]
+SCRAPE_ORDER = ["Waybig"]
+IGNORE_TAGS = ["NoPerfScrape"]
 ##############################
 
 
@@ -147,12 +151,13 @@ class StashInterface:
         "Accept": "application/json",
         "Connection": "keep-alive",
         "DNT": "1",
+        "ApiKey": config.api_key
     }
 
     def __init__(self, conn):
         self._conn = conn
         self.ignore_ssl_warnings = True
-        self.server = conn["Scheme"] + "://localhost:" + str(conn["Port"])
+        self.server = conn["Scheme"] + "://192.168.50.9:" + str(conn["Port"])
         self.url = self.server + "/graphql"
         self.auth_token = None
         if "SessionCookie" in self._conn:
@@ -200,8 +205,8 @@ class StashInterface:
         preformers = set()
         for p in result["allPerformers"]:
             preformers.add(p["name"].lower())
-            if p["aliases"] :
-                for alias in p["aliases"] .replace('/', ',').split(','):
+            if p["aliases"]:
+                for alias in p["aliases"].replace('/', ',').split(','):
                     preformers.add(alias.strip().lower())
 
         return preformers
@@ -230,11 +235,12 @@ query{
         if IGNORE_TAGS:
             scenes = []
             for scene in all_scenes:
-                if not any([t in IGNORE_TAGS for t in scene["tags"]]):
+                log.LogDebug("Checking IGNORE_TAGS (%s) against scene tags(%s)" % (IGNORE_TAGS, scene["tags"]))
+                if not any([t["name"] in IGNORE_TAGS for t in scene["tags"]]):
                     scenes.append(scene)
+            return scenes
         else:
-            scenes = all_scenes
-        return scenes
+            return all_scenes
 
     def findPerformer(self, name):
         for scraper in SCRAPE_ORDER:
